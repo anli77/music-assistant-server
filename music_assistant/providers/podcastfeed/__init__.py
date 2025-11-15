@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from music_assistant.models import ProviderInstanceType
 
 CONF_FEED_URL = "feed_url"
+CONF_REVERSE_EPISODE_ORDER = False
 
 CACHE_CATEGORY_PODCASTS = 0
 
@@ -88,6 +89,14 @@ async def get_config_entries(
             type=ConfigEntryType.STRING,
             label="RSS Feed URL",
             required=True,
+        ),
+        ConfigEntry(
+            key=CONF_REVERSE_EPISODE_ORDER,
+            type=ConfigEntryType.BOOLEAN,
+            label="Reverse Episode Order, for latest published first",
+            required=False,
+            default_value=False,
+            description="By default episodes are listed from oldest to latest, enable this to reverse that order.",
         ),
     )
 
@@ -162,10 +171,10 @@ class PodcastMusicprovider(MusicProvider):
         """List all episodes for the podcast."""
         if prov_podcast_id != self.podcast_id:
             raise Exception(f"Podcast id not in provider: {prov_podcast_id}")
-        # sort episodes by published date
+        # sort episodes by published date, unless reversed order is configured, then sort accordingly
         episodes: list[dict[str, Any]] = self.parsed_podcast["episodes"]
         if episodes and episodes[0].get("published", 0) != 0:
-            episodes.sort(key=lambda x: x.get("published", 0))
+            episodes.sort(key=lambda x: x.get("published", 0), reverse=self.config.get_value(CONF_REVERSE_EPISODE_ORDER))
         for idx, episode in enumerate(episodes):
             if mass_episode := self._parse_episode(episode, idx):
                 yield mass_episode
